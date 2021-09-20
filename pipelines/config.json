@@ -6,5 +6,6 @@
     "counts_gct" : "/data/franco/datasets/gtex_v8/expression/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_reads.gct.gz",
     "pheno_file" : "/data/franco/datasets/gtex_v8/phenotypes/phs000424.v8.pht002743.v8.p2.c1.GTEx_Sample_Attributes.GRU.txt",
     "donor_file" : "/data/franco/datasets/gtex_v8/genotypes/gtex_v8.sample",
-    "gtex_exprdir" : "/data/franco/datasets/gtex_v8/expression/GTEx_workdir"
+    "gtex_exprdir" : "/data/franco/datasets/gtex_v8/expression/GTEx_workdir",
+    "covariate_dir" : "/data/franco/datasets/gtex_v8/expression/GTEx_Analysis_v8_eQTL_covariates"
 }
