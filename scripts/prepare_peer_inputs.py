@@ -9,7 +9,7 @@ def parse_args():
     parser = argparse.ArgumentParser("Script to prepare input files format for PEER")
 
     parser.add_argument('--gx',
-                        help="input gene expression file compressed .gz",
+                        help="input gene expression file (.txt or .gz)",
                         type=str,
                         dest='gx_file')
 
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     with open(os.path.join(args.outdir, "gx.tab"), 'w') as ofile:
         gx_df.to_csv(ofile, header=False, index=False, sep="\t")
     
-    with open(os.path.join(args.outdir, "cov.txt"), 'w') as ofile:
+    with open(os.path.join(args.outdir, "cov.tab"), 'w') as ofile:
         sorted_cov_df.to_csv(ofile, header=False, index=False, sep="\t")
 
     # with open(args.outgx, 'w') as ofile:

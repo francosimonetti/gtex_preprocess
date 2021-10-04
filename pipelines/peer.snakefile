@@ -46,26 +46,20 @@ rule prepare_covariates:
 # decompress expr, sort covariates as expr samples, transpose covariate, delete row and col names for covariate
 rule prepare_peer:
     input:
-        #expr=part1("{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.txt.gz"),
         expr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.txt.gz",
         cov=config['covariate_dir']+"/{tissue}.no_peer.txt"
     output:
-        #cov_prep ="{workdir}/{gxnorm}/{tissue}_tmp_npeer{npeer}/cov.txt",
-        #expr_prep="{workdir}/{gxnorm}/{tissue}_tmp_npeer{npeer}/gx.tab",
         tmpdir   =directory("{workdir}/{gxnorm}/{tissue}_tmp_npeer{npeer}")
     shell:
-        "{config[python]} ../scripts/prepare_peer_inputs.py --gx {input.expr} --cov {input.cov} --outdir {output.tmpdir}" #--outgx {output.expr_prep} --outcov {output.cov_prep}"
+        "{config[python]} ../scripts/prepare_peer_inputs.py --gx {input.expr} --cov {input.cov} --outdir {output.tmpdir}"
 
 rule calc_peer:
     input:
-        # cov   ="{workdir}/{gxnorm}/{tissue}_tmp_npeer{npeer}/cov.txt",
-        # infile="{workdir}/{gxnorm}/{tissue}_tmp_npeer{npeer}/gx.tab"
         tmpdir  = "{workdir}/{gxnorm}/{tissue}_tmp_npeer{npeer}"
     output:
         touch("{workdir}/{gxnorm}/{tissue}_tmp_npeer{npeer}/peer.done")
     shell:
-        "peertool -f {input.tmpdir}/gx.tab -n {wildcards.npeer} -c {input.tmpdir}/cov.txt --no_a_out --no_z_out -o {input.tmpdir};" #{wildcards.workdir}/{wildcards.gxnorm}/{wildcards.tissue}_tmp_npeer{wildcards.npeer};"
-        # "peertool -f {input.infile} -n {wildcards.npeer} -c {input.cov} --no_a_out --no_z_out -o {wildcards.workdir}/{wildcards.gxnorm}/{wildcards.tissue}_tmp_npeer{wildcards.npeer};"
+        "peertool -f {input.tmpdir}/gx.tab -n {wildcards.npeer} -c {input.tmpdir}/cov.tab --no_a_out --no_z_out -o {input.tmpdir};"
 
 rule reformat_peer_results:
     input:
