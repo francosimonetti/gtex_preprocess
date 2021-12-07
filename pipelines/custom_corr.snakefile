@@ -19,9 +19,13 @@ wildcard_constraints:
 #     snakefile:
 #         "pipe2.snakefile"
 
-PCA   = [3, 3]
-NPEER = [3, 0]
-KNN   = [0, 30]
+# PCA   = [3, 3]
+# NPEER = [3, 0]
+# KNN   = [0, 30]
+
+PCA   = [0,  3,  3]
+NPEER = [0,  0,  10]
+KNN   = [30, 30, 30]
 
 # targets = expand([config['gtex_exprdir']+"/{{gxnorm}}/{{tissue}}.{{gxnorm}}.pc_lncrna.pca{pca}_npeer{npeer}_knn{k}.txt.gz"], zip, pca=PCA, npeer=NPEER, k=KNN)
 # print(targets)
@@ -36,7 +40,7 @@ rule all:
     input:
         #expand(targets, gxnorm=target_gxnorm, tissue=target_tissues )
         #expand(config['covariate_dir']+"/{tissue}.pca0.txt", tissue=target_tissues)
-        expand(config['gtex_exprdir']+"/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}.txt.gz", pca =[0,3], npeer=[3], gxnorm=target_gxnorm, tissue=target_tissues),
+        expand(config['gtex_exprdir']+"/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}.txt.gz", pca =PCA, npeer=NPEER, gxnorm=target_gxnorm, tissue=target_tissues),
         #config['gtex_exprdir']+"/{{gxnorm}}/{{tissue}}.{{gxnorm}}.pc_lncrna.pca{pca}_npeer{npeer}_knn{k}.txt.gz"
 
 def get_covariate_input(wildcards):
@@ -66,33 +70,35 @@ rule prepare_peer:
         expr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}.txt.gz",
         cov=config['covariate_dir']+"/{tissue}.pca{pca}.txt"
     output:
-        tmpdir=directory("{workdir}/{gxnorm}/{tissue}_tmp_pca{pca}_npeer{npeer}")
+        tmpdir=directory("{workdir}/{gxnorm}/tmp_{tissue}_pca{pca}_npeer{npeer}")
     shell:
         "{config[python]} ../scripts/prepare_peer_inputs.py --gx {input.expr} --cov {input.cov} --outdir {output.tmpdir}"
 
-# rule calc_peer:
+rule calc_peer:
+    input:
+        tmpdir = "{workdir}/{gxnorm}/tmp_{tissue}_pca{pca}_npeer{npeer}"
+    output:
+        touch("{workdir}/{gxnorm}/tmp_{tissue}_pca{pca}_npeer{npeer}/peer.done")
+    shell:
+        "if [ {wildcards.npeer} -ne 0 ] ; then peertool -f {input.tmpdir}/gx.tab -n {wildcards.npeer} -c {input.tmpdir}/cov.tab --no_a_out --no_z_out --e_pb 10 --e_pa 0.1 --a_pb 0.01 --a_pa 0.001 -o {input.tmpdir};"
+        "else sed 's/\t/,/g' {input.tmpdir}/gx.tab > {input.tmpdir}/residuals_t.csv; awk -f ../scripts/transpose_csv.awk {input.tmpdir}/residuals_t.csv >  {input.tmpdir}/residuals.csv; fi;"
+
+# rule calc_peer_nocov:
 #     input:
-#         tmpdir = "{workdir}/{gxnorm}/{tissue}_tmp_pca{pca}_npeer{npeer}"
+#         tmpdir = "{workdir}/{gxnorm}/tmp_{tissue}_pca{pca}_npeer{npeer}"
 #     output:
-#         touch("{workdir}/{gxnorm}/{tissue}_tmp_pca{pca}_npeer{npeer}/peer.done")
+#         touch("{workdir}/{gxnorm}/tmp_{tissue}_pca{pca}_npeer{npeer}/peer.done")
 #     shell:
-#         "if [ {wildcards.npeer} -ne 0 ] ; then peertool -f {input.tmpdir}/gx.tab -n {wildcards.npeer} -c {input.tmpdir}/cov.tab --no_a_out --no_z_out -o {input.tmpdir};"
+#         ### PEER with input covariates or with previous cclm of those covariates is the same! yay!
+#         "if [ {wildcards.npeer} -ne 0 ] ; then peertool -f {input.tmpdir}/gx.tab -n {wildcards.npeer} --no_a_out --no_z_out --e_pb 10 --e_pa 0.1 --a_pb 0.01 --a_pa 0.001 -o {input.tmpdir};"
 #         "else sed 's/\t/,/g' {input.tmpdir}/gx.tab > {input.tmpdir}/residuals_t.csv; awk -f ../scripts/transpose_csv.awk {input.tmpdir}/residuals_t.csv >  {input.tmpdir}/residuals.csv; fi;"
 
-rule calc_peer_nocov:
-    input:
-        tmpdir = "{workdir}/{gxnorm}/{tissue}_tmp_pca{pca}_npeer{npeer}"
-    output:
-        touch("{workdir}/{gxnorm}/{tissue}_tmp_pca{pca}_npeer{npeer}/peer.done")
-    shell:
-        ### PEER with input covariates or with previous cclm of those covariates is the same! yay!
-        "if [ {wildcards.npeer} -ne 0 ] ; then peertool -f {input.tmpdir}/gx.tab -n {wildcards.npeer} --no_a_out --no_z_out -o {input.tmpdir};"
-        "else sed 's/\t/,/g' {input.tmpdir}/gx.tab > {input.tmpdir}/residuals_t.csv; awk -f ../scripts/transpose_csv.awk {input.tmpdir}/residuals_t.csv >  {input.tmpdir}/residuals.csv; fi;"
+## peertool -f gx.tab -n 3 --no_a_out --no_z_out -c cov.tab -o test --e_pb 10 --e_pa 0.1 --a_pb 0.01 --a_pa 0.001
 
 rule reformat_peer_results:
     input:
-        tmpdir  = "{workdir}/{gxnorm}/{tissue}_tmp_pca{pca}_npeer{npeer}",
-        peerdone= "{workdir}/{gxnorm}/{tissue}_tmp_pca{pca}_npeer{npeer}/peer.done",
+        tmpdir  = "{workdir}/{gxnorm}/tmp_{tissue}_pca{pca}_npeer{npeer}",
+        peerdone= "{workdir}/{gxnorm}/tmp_{tissue}_pca{pca}_npeer{npeer}/peer.done",
         origexpr= "{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}.txt.gz"
     output:
         outexpr = "{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}.txt.gz"
@@ -108,6 +114,7 @@ rule calc_knn:
     input:
         expr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}.txt.gz"
     output:
-        outexpr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_knn{knn}.txt.gz"
+        outexpr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_knn{knn}.txt.gz",
+        outdist="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_knn{knn}.distmat.txt.gz"
     shell:
-        "{config[python]} ../scripts/"
+        "{config[python]} ../scripts/calc_knn.py --gx {input.expr} --k {wildcards.knn} --outdm {output.outdist} --outgx {output.outexpr}"
