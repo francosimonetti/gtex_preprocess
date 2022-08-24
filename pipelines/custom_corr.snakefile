@@ -6,7 +6,7 @@ with open("gtex_v8.custom.config") as instr:
 
 configfile: "config.json",
 
-target_tissues = ['ebv'] #['as', 'ebv', 'ms', 'wb'] #gtex_conf['tshorts']
+target_tissues = ['as'] #['as', 'ebv', 'ms', 'wb'] #gtex_conf['tshorts']
 target_gxnorm  = ["tpms_qcfilter"]
 
 wildcard_constraints:
@@ -19,29 +19,32 @@ wildcard_constraints:
 #     snakefile:
 #         "pipe2.snakefile"
 
-# PCA   = [3, 3]
-# NPEER = [3, 0]
-# KNN   = [0, 30]
-
-PCA   = [0,  3,  3]
-NPEER = [0,  0,  10]
-KNN   = [30, 30, 30]
+PCA   = [0, 3, 5]
+NPEER = [0,  10,  20, 30]
+KNN   = [0, 10, 20, 30]
 
 # targets = expand([config['gtex_exprdir']+"/{{gxnorm}}/{{tissue}}.{{gxnorm}}.pc_lncrna.pca{pca}_npeer{npeer}_knn{k}.txt.gz"], zip, pca=PCA, npeer=NPEER, k=KNN)
 # print(targets)
 
 
-##### INCOMPLETE
-### Chequear:
-#   - Correr peer acá y peer en mi compu de casa con el script PEER.R . Tendría que dar muy similar. No va a dar igual por el proceso iterativo de PEER
+### To obtain peer numbers according to GTEx
+# tissue_peer_dict = dict()
+# with open(config['tissue_table']) as ifile:
+#     for line in ifile:
+#         if line.startswith("#"): continue
+#         arr = line.rstrip().split("\t")
+#         tissue_peer_dict[arr[1]] = arr[3]
 
+# target_files = [f"{config['gtex_exprdir']}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pcaGTEx_npeer{tissue_peer_dict[tissue]}.txt.gz" for tissue in target_tissues for gxnorm in target_gxnorm]
 
 rule all:
     input:
         #expand(targets, gxnorm=target_gxnorm, tissue=target_tissues )
         #expand(config['covariate_dir']+"/{tissue}.pca0.txt", tissue=target_tissues)
-        expand(config['gtex_exprdir']+"/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}.txt.gz", pca =PCA, npeer=NPEER, gxnorm=target_gxnorm, tissue=target_tissues),
-        #config['gtex_exprdir']+"/{{gxnorm}}/{{tissue}}.{{gxnorm}}.pc_lncrna.pca{pca}_npeer{npeer}_knn{k}.txt.gz"
+        #expand(config['gtex_exprdir']+"/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}.txt.gz", pca =PCA, npeer=NPEER, gxnorm=target_gxnorm, tissue=target_tissues)
+        target_files
+        config['gtex_exprdir']+"/{{gxnorm}}/{{tissue}}.{{gxnorm}}.pc_lncrna.pca{pca}_npeer{npeer}_knn{k}.txt.gz"
+        
 
 def get_covariate_input(wildcards):
     return f"{config['covariate_dir']}/{gtex_conf[wildcards.tissue]['fullname']}.v8.covariates.txt"
@@ -52,7 +55,8 @@ rule prepare_pca_covariates:
     output:
         outfile=config['covariate_dir']+"/{tissue}.pca{pca}.txt"
     shell:
-        "grep -iv inferred {input} > {output.outfile}.tmp ; head -n $(( {wildcards.pca} + 1 )) {output.outfile}.tmp > {output.outfile}; rm {output.outfile}.tmp"
+        #"grep -iv inferred {input} > {output.outfile}.tmp ; head -n $(( {wildcards.pca} + 1 )) {output.outfile}.tmp > {output.outfile}; rm {output.outfile}.tmp"
+        "grep -iv inferred {input} > {output.outfile}"
         #"grep -iv inferred {input} | awk -f ../scripts/transpose.awk > {output.outfile};"
 
 rule cclm_correction:
@@ -115,6 +119,6 @@ rule calc_knn:
         expr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}.txt.gz"
     output:
         outexpr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_knn{knn}.txt.gz",
-        outdist="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_knn{knn}.distmat.txt.gz"
+        #outdist="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_knn{knn}.distmat.txt.gz"
     shell:
-        "{config[python]} ../scripts/calc_knn.py --gx {input.expr} --k {wildcards.knn} --outdm {output.outdist} --outgx {output.outexpr}"
+        "{config[python]} ../scripts/calc_knn.py --gx {input.expr} --k {wildcards.knn} --outgx {output.outexpr}" #--outdm {output.outdist} 
