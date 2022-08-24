@@ -10,7 +10,15 @@ exp_file = argv[1]
 cov_file = argv[2]
 out_file = argv[3]
 
+if (length(argv) == 4) {
+  # number of covariates to use
+  Ncov = argv[4]
+} else{
+  Ncov = -1
+}
+
 message("Reading expression..")
+# expression is in GxN format
 gene_exp = read.table(file = exp_file, header = TRUE, sep = "\t", row.names = 1)
 
 
@@ -20,6 +28,11 @@ pca = read.csv(file = cov_file, header = TRUE, sep="\t", row.names = 1)
 
 if (nrow(pca) > 0) {
   message("Calculating cclm..")
+
+  if (Ncov > 0) {
+    pca = pca[0:Ncov,]
+    message(paste(sep="", c("Selecting first ", Ncov," components")))
+  }
 
   if (all(colnames(pca) %in% colnames(gene_exp)) & ncol(gene_exp) == ncol(pca))
   {n <- colnames(gene_exp)

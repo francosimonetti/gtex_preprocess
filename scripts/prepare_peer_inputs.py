@@ -16,22 +16,13 @@ def parse_args():
     parser.add_argument('--cov',
                         help="input Covariate file",
                         type=str,
+                        default=None,
                         dest='cov_file')
 
     parser.add_argument('--outdir',
                         help="output file for gx",
                         type=str,
                         dest='outdir')
-
-    # parser.add_argument('--outgx',
-    #                     help="output file for gx",
-    #                     type=str,
-    #                     dest='outgx')
-
-    # parser.add_argument('--outcov',
-    #                     help="output file for covs",
-    #                     type=str,
-    #                     dest='outcov')
 
     opts = parser.parse_args()
     return opts
@@ -41,7 +32,6 @@ if __name__ == "__main__":
     args = parse_args()
 
     gx_df  = pd.read_csv(args.gx_file, header=0, index_col=0, sep="\t")
-    cov_df = pd.read_csv(args.cov_file, header=0, index_col=0, sep="\t")
 
     if gx_df.shape[0] > gx_df.shape[1]: # it's GxN
         # transpose to NxG
@@ -49,18 +39,6 @@ if __name__ == "__main__":
         gx_df.index.name = "gene_id"
 
     nsamples = gx_df.shape[0]
-    if cov_df.shape[0] != cov_df.shape[1]:
-        if cov_df.shape[0] != nsamples:
-            cov_df = cov_df.T
-    else:
-        print("ERROR! Same number of covariates as samples!")
-        raise
-
-    if cov_df.shape[0] != nsamples:
-        print("FATAL ERROR! covariates have different nsamples as gx")
-        raise
-
-    sorted_cov_df = cov_df.loc[list(gx_df.index)]
 
     # outdir = os.path.dirname(args.outgx)
     if not os.path.exists(args.outdir):
@@ -68,13 +46,20 @@ if __name__ == "__main__":
 
     with open(os.path.join(args.outdir, "gx.tab"), 'w') as ofile:
         gx_df.to_csv(ofile, header=False, index=False, sep="\t")
-    
-    with open(os.path.join(args.outdir, "cov.tab"), 'w') as ofile:
-        sorted_cov_df.to_csv(ofile, header=False, index=False, sep="\t")
+        
+    if args.cov_file is not None:
+        cov_df = pd.read_csv(args.cov_file, header=0, index_col=0, sep="\t")
+        if cov_df.shape[0] != cov_df.shape[1]:
+            if cov_df.shape[0] != nsamples:
+                cov_df = cov_df.T
+        else:
+            print("ERROR! Same number of covariates as samples!")
+            raise
 
-    # with open(args.outgx, 'w') as ofile:
-    #     gx_df.to_csv(ofile, header=False, index=False, sep="\t")
-    
-    # with open(args.outcov, 'w') as ofile:
-    #     sorted_cov_df.to_csv(ofile, header=False, index=False, sep="\t")
-    
+        if cov_df.shape[0] != nsamples:
+            print("FATAL ERROR! covariates have different nsamples as gx")
+            raise
+
+        sorted_cov_df = cov_df.loc[list(gx_df.index)]
+        with open(os.path.join(args.outdir, "cov.tab"), 'w') as ofile:
+            sorted_cov_df.to_csv(ofile, header=False, index=False, sep="\t")
