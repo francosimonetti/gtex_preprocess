@@ -9,27 +9,27 @@ configfile: "config.json",
 target_tissues = ['ebv'] #['as', 'ebv', 'ms', 'wb'] #gtex_conf['tshorts']
 target_gxnorm  = ["tpms_qcfilter"]
 
-wildcard_constraints:
-    tissue  = "|".join([x for x in target_tissues]),
-    gxnorm = "|".join([x for x in target_gxnorm]),
-    npeer  = "\d+",
-    pca    = "\d+"
-
 # subworkflow part2:
 #     snakefile:
 #         "pipe2.snakefile"
 
 PCA   = [0, 3, 5]
 NPEER = [0,  10,  20, 30]
-K     = [0, 10, 20, 30]
+K     = [10, 20, 30]
 DIM   = ["1"]
 KNN   = ["knn"]
+
 # GTKNN = ["knn"]
 # GTK   = [0]
 # GTDIM = ["0"]
 
-# targets = expand([config['gtex_exprdir']+"/{{gxnorm}}/{{tissue}}.{{gxnorm}}.pc_lncrna.pca{pca}_npeer{npeer}_knn{k}.txt.gz"], zip, pca=PCA, npeer=NPEER, k=KNN)
-# print(targets)
+wildcard_constraints:
+    tissue  = "|".join([x for x in target_tissues]),
+    gxnorm = "|".join([x for x in target_gxnorm]),
+    npeer  = "\d+",
+    pca    = "\d+",
+    k      = "\d+",
+    knn    = "|".join([x for x in KNN])
 
 ### To obtain peer numbers according to GTEx
 # tissue_peer_dict = dict()
@@ -39,14 +39,12 @@ KNN   = ["knn"]
 #         arr = line.rstrip().split("\t")
 #         tissue_peer_dict[arr[1]] = arr[3]
 
-# target_files = [f"{config['gtex_exprdir']}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pcaGTEx_npeer{tissue_peer_dict[tissue]}.txt.gz" for tissue in target_tissues for gxnorm in target_gxnorm]
-
 rule all:
     input:
         #expand(config['covariate_dir']+"/{tissue}.pca.txt", tissue=target_tissues, pca=PCA)
         #expand("{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}.txt.gz", tissue=target_tissues, pca=PCA, gxnorm=target_gxnorm, workdir=config['gtex_exprdir'])
-        expand("{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}.txt.gz", tissue=target_tissues, pca=PCA, gxnorm=target_gxnorm, npeer=NPEER, workdir=config['gtex_exprdir'])
-        #config['gtex_exprdir']+"/{{gxnorm}}/{{tissue}}.{{gxnorm}}.pc_lncrna.pca{pca}_npeer{npeer}_{knn}{k}d{dim}.txt.gz"
+        #expand("{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}.txt.gz", tissue=target_tissues, pca=PCA, gxnorm=target_gxnorm, npeer=NPEER, workdir=config['gtex_exprdir'])
+        expand("{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_{knn}{k}d{dim}.txt.gz", tissue=target_tissues, pca=PCA, gxnorm=target_gxnorm, npeer=NPEER, k=K, knn=KNN, dim=DIM, workdir=config['gtex_exprdir'])
         
 
 def get_covariate_input(wildcards):
@@ -116,13 +114,14 @@ rule reformat_peer_results:
         corr_df = pd.read_csv(f"{input[0]}/residuals.csv", header=None, index_col=None, sep=",")
         corr_df.index = list(orig_df.index)
         corr_df.columns = list(orig_df.columns)
-        corr_df.to_csv(output[0], header=True, index=True, sep="\t")
+        corr_df.T.to_csv(output[0], header=True, index=True, sep="\t") # transposed matrix here!
 
 rule calc_knn:
     input:
         expr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}.txt.gz"
     output:
-        outexpr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_knn{knn}.txt.gz",
-        #outdist="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_knn{knn}.distmat.txt.gz"
+        outexpr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_{knn}{k}d{dim}.txt.gz",
     shell:
-        "{config[python]} ../scripts/calc_knn.py --gx {input.expr} --k {wildcards.knn} --outgx {output.outexpr}" #--outdm {output.outdist} 
+        "if [ '{wildcards.knn}' = 'knn' ] ; then {config[python]} ../scripts/calc_krnn.py --gx {input.expr} --k {wildcards.k} --dim {wildcards.dim} --outgx {output.outexpr}; elif [ '{wildcards.knn}' = 'krnn' ] ; then {config[python]} ../scripts/calc_krnn.py --gx {input.expr} --k {wildcards.k} --dim {wildcards.dim} --outgx {output.outexpr} --kreciprocal; fi" #--outdm {output.outdist} 
+
+        #if [ 'knn' = 'knn' ] ; then /home/franco/miniconda3/bin/python ../scripts/calc_krnn.py --gx /data/franco/datasets/gtex_v8/expression/GTEx_workdir/tpms_qcfilter/ebv.tpms_qcfilter.pc_lncrna.pca0_npeer10.txt.gz --k 0 --dim 1 --outgx /da0_knn0d1.txt.gz; elif [ 'knn' = 'krnn' ] ; then /home/franco/miniconda3/bin/python ../scripts/calc_krnn.py --gx /data/franco/datasets/gtex_v8/expression/GTEx_workdir/tpms_qcfilter/ebv.tpms_qcfilter.pc_lncrna.pca0_npeer10.txt.gz --k 0 --dim 1 --outgx /data/franco/datasets/gtex_v8/expression/GTEx_workdir/tpms_qcfilter/ebv.tpms_qcfilter.pc_lncrna.pca0_npeer10_knn0d1.txt.gz --kreciprocal; fi

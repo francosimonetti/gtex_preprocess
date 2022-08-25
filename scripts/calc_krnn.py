@@ -1,4 +1,5 @@
 import sys
+sys.path.append("/data/franco/knn_correction/utils")
 from KNN import KNNcorrection as KNN
 import numpy as np
 import pandas as pd
