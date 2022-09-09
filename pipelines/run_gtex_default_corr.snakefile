@@ -4,7 +4,7 @@ with open("gtex_v8.custom.config") as instr:
     gtex_conf = json.load(instr)
 
 configfile: "config.json",
-target_tissues = ['as'] #['as', 'ebv', 'ms', 'wb'] #gtex_conf['tshorts']
+target_tissues = ['ebv'] #['as', 'ebv', 'ms', 'wb'] #gtex_conf['tshorts']
 
 wildcard_constraints:
     tissue  = "|".join([x for x in target_tissues])
@@ -12,7 +12,7 @@ wildcard_constraints:
 rule all:
     input:
         # expand(config['gtexportal_dir']+"/{tissue}.v8.normalized_expression.reformat.txt", tissue=target_tissues)
-        expand(config['gtexportal_dir']+"/{tissue}.v8.normalized_expression.covariate_corrected.txt", tissue=target_tissues)
+        expand(config['gtexportal_dir']+"/{tissue}.v8.normalized_expression.covariate_corrected.txt.gz", tissue=target_tissues)
 
 def get_covariate_input(wildcards):
     return f"{config['covariate_dir']}/{gtex_conf[wildcards.tissue]['fullname']}.v8.covariates.txt"

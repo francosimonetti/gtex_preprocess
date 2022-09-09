@@ -13,11 +13,12 @@ target_gxnorm  = ["tpms_qcfilter"]
 #     snakefile:
 #         "pipe2.snakefile"
 
-PCA   = [0, 3, 5]
-NPEER = [0,  10,  20, 30]
+PCA   = [0]
+NPEER = [0]
 K     = [10, 20, 30]
 DIM   = ["1"]
 KNN   = ["knn"]
+GTDIM = ["3"]
 
 # GTKNN = ["knn"]
 # GTK   = [0]
@@ -29,7 +30,8 @@ wildcard_constraints:
     npeer  = "\d+",
     pca    = "\d+",
     k      = "\d+",
-    knn    = "|".join([x for x in KNN])
+    knn    = "|".join([x for x in KNN]),
+    gtdim = "|".join([x for x in GTDIM]),
 
 ### To obtain peer numbers according to GTEx
 # tissue_peer_dict = dict()
@@ -44,7 +46,8 @@ rule all:
         #expand(config['covariate_dir']+"/{tissue}.pca.txt", tissue=target_tissues, pca=PCA)
         #expand("{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}.txt.gz", tissue=target_tissues, pca=PCA, gxnorm=target_gxnorm, workdir=config['gtex_exprdir'])
         #expand("{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}.txt.gz", tissue=target_tissues, pca=PCA, gxnorm=target_gxnorm, npeer=NPEER, workdir=config['gtex_exprdir'])
-        expand("{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_{knn}{k}d{dim}.txt.gz", tissue=target_tissues, pca=PCA, gxnorm=target_gxnorm, npeer=NPEER, k=K, knn=KNN, dim=DIM, workdir=config['gtex_exprdir'])
+        #expand("{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_{knn}{k}d{dim}.txt.gz", tissue=target_tissues, pca=PCA, gxnorm=target_gxnorm, npeer=NPEER, k=K, knn=KNN, dim=DIM, workdir=config['gtex_exprdir'])
+        expand("{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_{knn}GT{k}d{gtdim}_{knn}{k}d{dim}.txt.gz", tissue=target_tissues, pca=PCA, gxnorm=target_gxnorm, npeer=NPEER, k=K, knn=KNN, dim=DIM, gtdim=GTDIM, workdir=config['gtex_exprdir'])
         
 
 def get_covariate_input(wildcards):
@@ -122,6 +125,21 @@ rule calc_knn:
     output:
         outexpr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_{knn}{k}d{dim}.txt.gz",
     shell:
-        "if [ '{wildcards.knn}' = 'knn' ] ; then {config[python]} ../scripts/calc_krnn.py --gx {input.expr} --k {wildcards.k} --dim {wildcards.dim} --outgx {output.outexpr}; elif [ '{wildcards.knn}' = 'krnn' ] ; then {config[python]} ../scripts/calc_krnn.py --gx {input.expr} --k {wildcards.k} --dim {wildcards.dim} --outgx {output.outexpr} --kreciprocal; fi" #--outdm {output.outdist} 
+        "if [ '{wildcards.knn}' = 'knn' ] ; then {config[python]} ../scripts/calc_krnn.py --gx {input.expr} --k {wildcards.k} --dim {wildcards.dim} --outgx {output.outexpr}; elif [ '{wildcards.knn}' = 'krnn' ] ; then {config[python]} ../scripts/calc_krnn.py --gx {input.expr} --k {wildcards.k} --dim {wildcards.dim} --outgx {output.outexpr} --kreciprocal; fi"
 
-        #if [ 'knn' = 'knn' ] ; then /home/franco/miniconda3/bin/python ../scripts/calc_krnn.py --gx /data/franco/datasets/gtex_v8/expression/GTEx_workdir/tpms_qcfilter/ebv.tpms_qcfilter.pc_lncrna.pca0_npeer10.txt.gz --k 0 --dim 1 --outgx /da0_knn0d1.txt.gz; elif [ 'knn' = 'krnn' ] ; then /home/franco/miniconda3/bin/python ../scripts/calc_krnn.py --gx /data/franco/datasets/gtex_v8/expression/GTEx_workdir/tpms_qcfilter/ebv.tpms_qcfilter.pc_lncrna.pca0_npeer10.txt.gz --k 0 --dim 1 --outgx /data/franco/datasets/gtex_v8/expression/GTEx_workdir/tpms_qcfilter/ebv.tpms_qcfilter.pc_lncrna.pca0_npeer10_knn0d1.txt.gz --kreciprocal; fi
+rule calc_GTknn:
+    input:
+        expr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}.txt.gz",
+        gtpca=config['covariate_dir']+"/{tissue}.pca.txt"
+    output:
+        outexpr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_{knn}GT{k}d{gtdim}.txt.gz"
+    shell:
+        "if [ '{wildcards.knn}' = 'knn' ] ; then {config[python]} ../scripts/calc_krnn.py --gx {input.expr} --gtpca {input.gtpca} --k {wildcards.k} --dim {wildcards.gtdim} --outgx {output.outexpr}; elif [ '{wildcards.knn}' = 'krnn' ] ; then {config[python]} ../scripts/calc_krnn.py --gx {input.expr} --gtpca {input.gtpca} --k {wildcards.k} --dim {wildcards.gtdim} --outgx {output.outexpr} --kreciprocal; fi"
+
+rule calc_double_knn:
+    input:
+        expr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_{knn}GT{k}d{gtdim}.txt.gz",
+    output:
+        outexpr="{workdir}/{gxnorm}/{tissue}.{gxnorm}.pc_lncrna.pca{pca}_npeer{npeer}_{knn}GT{k}d{gtdim}_{knn}{K}d{dim}.txt.gz"
+    shell:
+        "if [ '{wildcards.knn}' = 'knn' ] ; then {config[python]} ../scripts/calc_krnn.py --gx {input.expr} --k {wildcards.k} --dim {wildcards.dim} --outgx {output.outexpr}; elif [ '{wildcards.knn}' = 'krnn' ] ; then {config[python]} ../scripts/calc_krnn.py --gx {input.expr} --k {wildcards.k} --dim {wildcards.dim} --outgx {output.outexpr} --kreciprocal; fi"

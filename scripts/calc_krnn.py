@@ -77,7 +77,10 @@ if __name__ == "__main__":
     samplenames = list(expr_df.index)
 
     if args.gtpca_file is not None:
-        gtpca_df = pd.read_csv(args.gtpca_file, header=0, index_col=0)
+        gtpca_df = pd.read_csv(args.gtpca_file, header=0, index_col=0, sep="\t")
+        if gtpca_df.shape[0] < gtpca_df.shape[1]:
+            print("More PCs than samples? Transposing matrix")
+            gtpca_df = gtpca_df.T
         gt_samplenames = list(gtpca_df.index)
         common_samples = [x for x in gt_samplenames if x in samplenames]
         if len(common_samples) != len(samplenames):
